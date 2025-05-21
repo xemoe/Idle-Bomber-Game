@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Bomberman</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* Align to start for header */
+            align-items: center;
+            min-height: 100vh;
+            background-color: #000000; /* Black background */
+            color: #e2e8f0; /* Light text */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        canvas {
+            background-color: #FFFFFF; /* White background for the playable area (will be set by JS) */
+            display: block;
+            border: 4px solid #333333; /* Darker border */
+            border-radius: 8px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            max-width: 100%; /* Make canvas responsive */
+            height: auto; /* Maintain aspect ratio */
+            flex-shrink: 0; /* Prevent canvas from shrinking */
+        }
+        /* Header area for title and info */
+        .header-area {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+            max-width: 1200px; /* Match main content width */
+        }
+        /* Main layout wrapper for map/commentary and status panel */
+        .main-game-layout {
+            display: flex;
+            flex-direction: column; /* Default to column for mobile */
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px; /* Limit overall width */
+            padding: 20px;
+            background-color: #1a1a1a; /* Background for this section */
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+            flex-grow: 1; /* Allow this main layout to grow vertically */
+        }
+        @media (min-width: 1024px) { /* For large screens (lg) */
+            .main-game-layout {
+                flex-direction: row; /* Change to row */
+                align-items: flex-start; /* Align items to the top */
+            }
+        }
+
+        /* Container for map and commentary, stacked vertically */
+        .map-and-commentary-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            flex-grow: 1; /* Allow it to grow and fill space */
+        }
+
+        /* Right side panel containing status and buttons */
+        .right-side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space between status and buttons */
+            width: 100%;
+            flex-grow: 1; /* Allow it to grow and fill space */
+        }
+
+        h1 {
+            color: #FFFFFF; /* White for heading */
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+        .info-panel {
+            background-color: #333333;
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            text-align: center;
+            color: #FFFFFF;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            min-width: 300px;
+        }
+        .message-box h2 {
+            color: #FFFFFF;
+            margin-bottom: 15px;
+        }
+        .message-box table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            color: #e2e8f0;
+        }
+        .message-box th, .message-box td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+        .message-box th {
+            background-color: #222;
+            font-size: 0.9em;
+        }
+        .message-box tr:last-child td {
+            border-bottom: none;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center; /* Center buttons */
+            width: 100%; /* Ensure buttons take full width of their container */
+        }
+        .action-button {
+            padding: 12px 25px;
+            background-color: #63b3ed; /* Blue */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .action-button:hover {
+            background-color: #4299e1; /* Darker blue */
+            transform: translateY(-2px);
+        }
+        .action-button:disabled {
+            background-color: #a0aec0; /* Gray */
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .commentary-log {
+            background-color: #333333;
+            border: 2px solid #555555;
+            border-radius: 8px;
+            padding: 15px;
+            width: 100%;
+            flex-grow: 1; /* Allow it to grow and fill space */
+            max-height: 250px; /* Max height for commentary */
+            overflow-y: auto;
+            font-size: 0.95rem;
+            color: #FFFFFF;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .commentary-log p {
+            margin-bottom: 8px; /* Add space between messages */
+            line-height: 1.5;
+            padding: 8px 12px; /* Add padding like a chat bubble */
+            background-color: #4a4a4a; /* Message background color */
+            border-radius: 6px;
+            word-wrap: break-word; /* Prevent text overflow */
+        }
+        .commentary-log p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Bomberman Status Panel */
+        .bomberman-status-panel {
+            background-color: #333333;
+            border: 2px solid #555555;
+            border-radius: 8px;
+            padding: 15px;
+            width: 100%; /* Full width in vertical layout */
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            flex-grow: 2; /* Give more space to status panel */
+            overflow-y: auto; /* Make scrollable if content overflows */
+        }
+        .bomberman-status-panel h2 {
+            color: #FFFFFF;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .bomberman-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            padding-right: 5px; /* For scrollbar spacing */
+        }
+        .bomberman-card {
+            background-color: #444444;
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-size: 0.9rem;
+            color: #FFFFFF;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .bomberman-card p {
+            margin: 2px 0;
+            line-height: 1.3;
+        }
+        .bomberman-card .status-alive {
+            color: #4CAF50; /* Green */
+            font-weight: bold;
+        }
+        .bomberman-card .status-eliminated {
+            color: #F44336; /* Red */
+            font-weight: bold;
+        }
+        .bomberman-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #FFD700; /* Gold for name */
+        }
+        .bomberman-image-container { /* New container for SVG icon */
+            width: 60px; /* Set size for the container */
+            height: 60px;
+            border-radius: 50%; /* Make container circular */
+            background-color: #666666; /* Background for icon */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+            border: 2px solid #63b3ed; /* Blue border */
+        }
+        .bomberman-image-container svg {
+            width: 32px; /* Size of the SVG icon inside the container */
+            height: 32px;
+            color: #FFFFFF; /* White color for the SVG */
+        }
+
+        /* Overall Status Panel Styles */
+        .overall-status-panel {
+            background-color: #333333;
+            border: 2px solid #555555;
+            border-radius: 8px;
+            padding: 15px;
+            width: 100%;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            text-align: center; /* Center the title */
+        }
+        .overall-bomberman-status-list {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping for many bombermen */
+            justify-content: center; /* Center the circles */
+            gap: 10px; /* Space between circles */
+            margin-top: 10px;
+        }
+        .status-circle {
+            width: 30px; /* Size of the circle */
+            height: 30px;
+            border-radius: 50%; /* Make it a circle */
+            border: 2px solid #FFFFFF; /* White border */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #FFFFFF;
+            transition: background-color 0.3s ease; /* Smooth transition for color change */
+        }
+        .status-circle.alive {
+            background-color: #4CAF50; /* Green for alive */
+        }
+        .status-circle.eliminated {
+            background-color: #F44336; /* Red for eliminated */
+        }
+
+
+        /* Mobile specific styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .header-area {
+                margin-bottom: 15px;
+            }
+            .main-game-layout {
+                padding: 15px;
+                gap: 15px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .info-panel {
+                font-size: 1rem;
+                padding: 10px 15px;
+            }
+            .button-group {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+            .action-button {
+                width: 100%;
+                font-size: 1rem;
+                padding: 10px 20px;
+            }
+            .commentary-log {
+                font-size: 0.85rem;
+                max-height: 150px; /* Adjust max-height for mobile */
+            }
+            .message-box {
+                font-size: 1.5em;
+                padding: 20px;
+            }
+            .message-box h2 {
+                font-size: 1.8rem;
+            }
+            .message-box th, .message-box td {
+                font-size: 0.8em;
+                padding: 6px;
+            }
+            #playAgainBtn, #playAgainFullResetBtn {
+                font-size: 1rem;
+                padding: 10px 20px;
+            }
+            .bomberman-status-panel h2 {
+                font-size: 1.2rem;
+            }
+            .bomberman-list {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+            .bomberman-card {
+                font-size: 0.8rem;
+                padding: 8px;
+            }
+            .overall-status-panel h2 {
+                font-size: 1.2rem;
+            }
+            .status-circle {
+                width: 25px;
+                height: 25px;
+                font-size: 0.7rem;
+            }
+        }
+
+        .neon-title {
+            font-size: 3rem;
+            font-weight: bold;
+            color: white;
+            text-shadow:
+                0 0 5px #fff,
+                0 0 10px #ff00ff,
+                0 0 20px #ff00ff,
+                0 0 40px #ff00ff,
+                0 0 80px #ff00ff;
+            animation: flicker 2s infinite alternate;
+        }
+
+        .neon-text {
+            font-weight: bold;
+            color: white;
+            text-shadow:
+                0 0 3px #fff,
+                0 0 6px #0ff,
+                0 0 12px #0ff,
+                0 0 24px #0ff;
+            animation: flickerColor 2s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                opacity: 1;
+            }
+            20%, 24%, 55% {
+                opacity: 0.4;
+            }
+        }
+
+        @keyframes flickerColor {
+            0%   { text-shadow: 0 0 5px red, 0 0 10px orange, 0 0 15px yellow; }
+            25%  { text-shadow: 0 0 5px lime, 0 0 10px green, 0 0 15px cyan; }
+            50%  { text-shadow: 0 0 5px blue, 0 0 10px indigo, 0 0 15px violet; }
+            75%  { text-shadow: 0 0 5px pink, 0 0 10px hotpink, 0 0 15px deeppink; }
+            100% { text-shadow: 0 0 5px red, 0 0 10px orange, 0 0 15px yellow; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="header-area">
+        <h1 class="neon-title">Idle Bomberman</h1>
+        <div class="info-panel neon-panel mt-2">
+            <p class="neon-text">AI บอมเบอร์มันวางบึ้มใส่กันเอง!</p>
+            <p class="neon-text">คนสุดท้ายที่ยังยืนอยู่ คือแชมป์ของสนามนี้!</p>
+            <p class="neon-text">รอบ: <span id="roundDisplay">1</span> / <span id="maxRoundsDisplay">10</span></p>
+        </div>
+    </div>
+
+    <div class="main-game-layout">
+        <div class="map-and-commentary-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div id="commentaryLog" class="commentary-log w-full">
+                <p>ยินดีต้อนรับสู่ Idle Bomberman Arena! เตรียมพร้อมสำหรับการต่อสู้สุดระเบิด!</p>
+            </div>
+        </div>
+
+        <div class="right-side-panel">
+            <div id="overallStatusPanel" class="overall-status-panel">
+                <h2 class="text-xl font-bold text-white mb-4 text-center">สถานะภาพรวม</h2>
+                <div id="overallBombermanStatusList" class="overall-bomberman-status-list">
+                    </div>
+            </div>
+
+            <div id="bombermanStatusPanel" class="bomberman-status-panel">
+                <h2 class="text-xl font-bold text-white mb-4 text-center">สถานะบอมเบอร์แมน</h2>
+                <div id="bombermanList" class="bomberman-list">
+                    </div>
+            </div>
+
+            <div class="button-group flex flex-col sm:flex-row gap-4 w-full justify-center">
+                <button id="generateCommentaryBtn" class="action-button">✨ สร้างคำบรรยาย</button>
+                <button id="resetGameBtn" class="action-button">รีเซ็ตเกม</button>
+                <button id="changeMapModeBtn" class="action-button">โหมด: กระดานหมากล้อม</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <script>
+        // Game constants
+        const INITIAL_GRID_SIZE = 32; // Original size for calculation reference
+        const GRID_SIZE = (INITIAL_GRID_SIZE / 2) - 1; // Make boxes smaller (half size)
+        const MAP_COLS_ORIGINAL = 21;
+        const MAP_ROWS_ORIGINAL = 15;
+        const MAP_COLS = (MAP_COLS_ORIGINAL * 2) +1; // Double grid columns
+        const MAP_ROWS = (MAP_ROWS_ORIGINAL * 2) +1; // Double grid rows
+
+        const BOMB_TIMER_TICKS = 60 * 2; // 2 seconds at 60 FPS
+        const EXPLOSION_DURATION_TICKS = 30; // 0.5 seconds at 60 FPS
+        const BOMBERMAN_MOVE_COOLDOWN = 25; // Number of ticks before a bomberman can move again
+        const BOMBERMAN_BOMB_COOLDOWN = 60 * 3; // Number of ticks before a bomberman can drop a bomb again (3 seconds)
+        const BOMBERMAN_INITIAL_BOMBS = 1;
+        const BOMBERMAN_INITIAL_RADIUS = 1; // Initial bomb radius
+        const THREAT_DETECTION_TIMER_THRESHOLD = 60 * 1.3; // Consider a bomb a threat if it explodes within 1.3 seconds
+        const TREASURE_SPAWN_CHANCE = 0.2; // 20% chance for treasure to appear when a breakable wall is destroyed
+        const MAX_BOMBERMEN = 8; // Increased number of bombermen
+
+        // New Game Constants for Classes
+        const CLASS_SWORDMAN = 'swordman';
+        const CLASS_MAGE = 'mage';
+        const CLASS_ARCHER = 'archer';
+        const CLASS_TANKER = 'tanker';
+        const SKILL_COOLDOWN_TICKS = 60 * 5; // Cooldown increased to 5 seconds
+        const MAP_TIMEOUT_TICKS = 60 * 120; // 2 minute timeout
+
+        const THAI_FUNNY_NAMES = [
+            "ระเบิดศรี", "จอมวางบึ้ม", "บักตูมตาม", "นายพลปิงปอง", "ระเบิดขั้นเทพ",
+            "เปรี้ยงปร้าง", "ปังปอนด์บอมบ์", "ตูมตามสังหาร", "สหายดินปืน", "หลวงพี่บึ้ม",
+            "ดอกเตอร์บึ้ม", "ยักษ์ใหญ่ไส้แตก", "บักหำน้อย", "จอมมารตูม", "มะระระเบิด",
+            "บอมบ์บอมบี้", "ระเบิดพุงกลม", "นายระเบิด", "บึ้มบึ้มซัง", "ป๋าเปรี้ยง",
+        ];
+
+        function getRandomThaiName() {
+            return THAI_FUNNY_NAMES[Math.floor(Math.random() * THAI_FUNNY_NAMES.length)];
+        }
+
+        function shuffleArray(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // Game management
+        let roundCount = 0;
+        const MAX_ROUNDS = 10;
+        let bombermanStats = {}; // To store win, kill stats etc. for each bomberman ID
+
+        // Colors (Black/White theme with RGB glow)
+        const COLOR_BOMB = '#000000'; // Black
+        const COLOR_TREASURE = '#FFD700'; // Gold for treasure
+        let COLOR_INDESTRUCTIBLE_WALL = '#555555'; // Different color for indestructible walls (changed to let)
+
+        // Dynamically generated colors for the current round
+        let unbreakableWallColor;
+        let breakableWallColor;
+        let explosionCenterColor;
+        let explosionArmColor;
+
+        // Game state
+        let canvas, ctx;
+        let gameMap = [];
+        let bombermen = [];
+        let bombs = [];
+        let explosions = [];
+        let gameRunning = true;
+        let gameTick = 0;
+
+        // Message box element
+        let messageBox;
+        // LLM commentary elements
+        let commentaryLogElement;
+        let generateCommentaryBtn;
+        let resetGameBtn;
+        let changeMapModeBtn; // New button element
+        let roundDisplayElement;
+        let maxRoundsDisplayElement; // Corrected variable name
+        let bombermanListElement; // Element for bomberman status list
+        let overallBombermanStatusListElement; // New element for overall status circles
+
+        // Global variable for map mode
+        let mapMode = 'go'; // Default mode
+
+        // LLM related variables
+        let lastAutoCommentaryTick = 2;
+        const AUTO_COMMENTARY_INTERVAL = 60 * 15; // Generate commentary every 15 seconds (adjusted to be slower)
+        let recentDeaths = [];
+        let recentBombDrops = []; // Stores {x, y, ownerId}
+
+        // Fallback mode control
+        const USE_FALLBACK_COMMENTARY_INITIALLY = false; // Set to true if you want to start with fallback mode
+        let useFallbackCommentary = USE_FALLBACK_COMMENTARY_INITIALLY;
+
+        // Map cell types
+        const CELL_EMPTY = 0;
+        const CELL_UNBREAKABLE_WALL = 1;
+        const CELL_BREAKABLE_WALL = 2;
+        const CELL_TREASURE = 3;
+        const CELL_INDESTRUCTIBLE_WALL = 4; // New cell type
+
+        // Bombermen directions
+        const DIRECTIONS = {
+            UP: { dx: 0, dy: -1 },
+            DOWN: { dx: 0, dy: 1 },
+            LEFT: { dx: -1, dy: 0 },
+            RIGHT: { dx: 1, dy: 0 },
+        };
+        const DIRECTION_ARRAY = [DIRECTIONS.UP, DIRECTIONS.DOWN, DIRECTIONS.LEFT, DIRECTIONS.RIGHT];
+
+        /**
+         * Helper function to generate a random HSL color string.
+         * @param {number} saturation - Saturation percentage (e.g., 100).
+         * @param {number} lightness - Lightness percentage (e.g., 50).
+         * @returns {string} HSL color string.
+         */
+        function getRandomHslColor(saturation, lightness) {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        /**
+         * Initializes the game canvas, context, and sets up the initial game state.
+         * @param {boolean} isFullReset - True if this is a full game reset (clearing all stats), false for a new round.
+         */
+        function initGame(isFullReset = true) {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            messageBox = document.getElementById('messageBox');
+            commentaryLogElement = document.getElementById('commentaryLog');
+            generateCommentaryBtn = document.getElementById('generateCommentaryBtn');
+            resetGameBtn = document.getElementById('resetGameBtn');
+            changeMapModeBtn = document.getElementById('changeMapModeBtn'); // Get new button element
+            roundDisplayElement = document.getElementById('roundDisplay');
+            maxRoundsDisplayElement = document.getElementById('maxRoundsDisplay'); // Corrected variable assignment
+            bombermanListElement = document.getElementById('bombermanList'); // Get element for bomberman status list
+            overallBombermanStatusListElement = document.getElementById('overallBombermanStatusList'); // Get new element for overall status circles
+
+            const uniqueNames = shuffleArray([...THAI_FUNNY_NAMES]).slice(0, MAX_BOMBERMEN);
+
+            // Set canvas dimensions based on grid size
+            canvas.width = MAP_COLS * GRID_SIZE;
+            canvas.height = MAP_ROWS * GRID_SIZE;
+
+            // Event listeners for buttons
+            generateCommentaryBtn.addEventListener('click', generateGameCommentary);
+            resetGameBtn.addEventListener('click', () => resetGame(true)); // Ensure full reset when this button is clicked
+            changeMapModeBtn.addEventListener('click', cycleMapMode); // Add event listener for map mode button
+
+            // Reset LLM related state
+            recentDeaths = [];
+            recentBombDrops = [];
+            lastAutoCommentaryTick = 0;
+
+            if (isFullReset) {
+                roundCount = 0;
+                bombermanStats = {}; // Clear all stats for a new game
+                commentaryLogElement.innerHTML = '<p>ยินดีต้อนรับสู่ Idle Bomberman Arena! เตรียมพร้อมสำหรับการต่อสู้สุดระเบิด!</p>';
+                useFallbackCommentary = USE_FALLBACK_COMMENTARY_INITIALLY; // Reset fallback mode on full reset
+            }
+            commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight; // Scroll to bottom
+
+            maxRoundsDisplayElement.textContent = MAX_ROUNDS; // Set max rounds display
+
+            // Update map colors based on current mode
+            updateMapColors();
+            updateMapModeButtonText(); // Update button text on init
+
+            // Initialize bomberman stats if this is the very first round or a full reset
+            if (Object.keys(bombermanStats).length === 0) { // Check if stats are empty
+                for (let i = 1; i <= MAX_BOMBERMEN; i++) {
+                    bombermanStats[i] = {
+                        id: i,
+                        wins: 0,
+                        kills: 0,
+                        roundsPlayed: 0,
+                        totalSurvivalTime: 0
+                    };
+                }
+            }
+
+            // Initialize game map
+            gameMap = Array(MAP_ROWS).fill(0).map(() => Array(MAP_COLS).fill(CELL_EMPTY));
+
+            // Create unbreakable walls (border)
+            for (let r = 0; r < MAP_ROWS; r++) {
+                for (let c = 0; c < MAP_COLS; c++) {
+                    if (r === 0 || r === MAP_ROWS - 1 || c === 0 || c === MAP_COLS - 1) {
+                        gameMap[r][c] = CELL_UNBREAKABLE_WALL;
+                    }
+                }
+            }
+
+            // Create inner unbreakable walls (every other row/column)
+            for (let r = 2; r < MAP_ROWS - 2; r += 2) {
+                for (let c = 2; c < MAP_COLS - 2; c += 2) {
+                    gameMap[r][c] = CELL_UNBREAKABLE_WALL;
+                }
+            }
+
+            // Create breakable walls randomly
+            for (let r = 1; r < MAP_ROWS - 1; r++) {
+                for (let c = 1; c < MAP_COLS - 1; c++) {
+                    // Avoid placing breakable walls on unbreakable walls or initial player spawn points
+                    if (gameMap[r][c] === CELL_EMPTY && Math.random() < 0.6) { // 60% chance
+                        // Ensure corners are clear for initial bomberman placement
+                        const isCorner = (r === 1 && c === 1) ||
+                                         (r === 1 && c === MAP_COLS - 2) ||
+                                         (r === MAP_ROWS - 2 && c === 1) ||
+                                         (r === MAP_ROWS - 2 && c === MAP_COLS - 2);
+                        if (!isCorner) {
+                            gameMap[r][c] = CELL_BREAKABLE_WALL;
+                        }
+                    }
+                }
+            }
+
+            // Place new indestructible blocks
+            const INDESTRUCTIBLE_BLOCK_COUNT = 15; // Number of indestructible blocks to place
+            const MIN_DIST_INDESTRUCTIBLE = 6; // Minimum Manhattan distance between indestructible blocks
+
+            for (let i = 0; i < INDESTRUCTIBLE_BLOCK_COUNT; i++) {
+                let placed = false;
+                let attempts = 0;
+                while (!placed && attempts < 1000) { // Max attempts to prevent infinite loop
+                    const randR = Math.floor(Math.random() * (MAP_ROWS - 2)) + 1;
+                    const randC = Math.floor(Math.random() * (MAP_COLS - 2)) + 1;
+
+                    if (gameMap[randR][randC] === CELL_EMPTY) {
+                        let tooClose = false;
+                        for (let r = 0; r < MAP_ROWS; r++) {
+                            for (let c = 0; c < MAP_COLS; c++) {
+                                if (gameMap[r][c] === CELL_INDESTRUCTIBLE_WALL) {
+                                    const distance = Math.abs(randC - c) + Math.abs(randR - r);
+                                    if (distance < MIN_DIST_INDESTRUCTIBLE) {
+                                        tooClose = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (tooClose) break;
+                        }
+
+                        if (!tooClose) {
+                            gameMap[randR][randC] = CELL_INDESTRUCTIBLE_WALL;
+                            placed = true;
+                        }
+                    }
+                    attempts++;
+                }
+            }
+
+            // Place bombermen
+            bombermen = [];
+            const spawnPoints = [
+                { x: 1, y: 1 },
+                { x: MAP_COLS - 2, y: 1 },
+                { x: 1, y: MAP_ROWS - 2 },
+                { x: MAP_COLS - 2, y: MAP_ROWS - 2 },
+                // Additional spawn points for more bombermen
+                { x: Math.floor(MAP_COLS / 2), y: 1 },
+                { x: 1, y: Math.floor(MAP_ROWS / 2) },
+                { x: MAP_COLS - 2, y: Math.floor(MAP_ROWS / 2) },
+                { x: Math.floor(MAP_COLS / 2), y: MAP_ROWS - 2 }
+            ];
+
+            // Randomize spawn points to randomize which bomberman gets which spot
+            spawnPoints.sort(() => Math.random() - 0.5);
+
+            // Clear a 5x5 area around spawn points (approx 2 blocks in each direction)
+            const CLEAR_RADIUS = 2;
+
+            for (let i = 0; i < MAX_BOMBERMEN; i++) {
+                if (spawnPoints[i]) {
+                    const name = uniqueNames[i]; // i = index of this bomberman
+                    const { x, y } = spawnPoints[i];
+                    // Assign a unique random color to each bomberman for the round
+                    bombermen.push(createBomberman(x, y, i + 1, getRandomHslColor(100, 50), name));
+                    gameMap[y][x] = CELL_EMPTY; // Ensure spawn point is clear
+                    for (let dx = -CLEAR_RADIUS; dx <= CLEAR_RADIUS; dx++) {
+                        for (let dy = -CLEAR_RADIUS; dy <= CLEAR_RADIUS; dy++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (isValidGridCoord(nx, ny) && gameMap[ny][nx] === CELL_BREAKABLE_WALL) {
+                                gameMap[ny][nx] = CELL_EMPTY;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Update bomberman status display immediately after initialization
+            updateBombermanStatusDisplay();
+            updateOverallStatusDisplay(); // Call new function here
+
+            // Start the game loop if not already running
+            if (!gameRunning) {
+                gameRunning = true;
+                gameTick = 0;
+                gameLoop();
+            }
+        }
+
+        /**
+         * Creates a new bomberman object.
+         * @param {number} x - Initial X grid coordinate.
+         * @param {number} y - Initial Y grid coordinate.
+         * @param {number} id - Unique ID for the bomberman.
+         * @param {string} color - The HSL color string for this bomberman.
+         * @param {string} name - The name of the bomberman.
+         * @returns {object} The bomberman object.
+         */
+        function createBomberman(x, y, id, color, name) {
+            const classes = [CLASS_SWORDMAN, CLASS_MAGE, CLASS_ARCHER, CLASS_TANKER];
+            const randomClass = classes[Math.floor(Math.random() * classes.length)];
+
+            let svgIcon = '';
+            // Assign SVG icon based on class
+            switch (randomClass) {
+                case CLASS_SWORDMAN:
+                    svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M13 2L11 2L11 12L7 12L7 14L11 14L11 22L13 22L13 14L17 14L17 12L13 12L13 2Z"/></svg>`; // Simple vertical sword
+                    break;
+                case CLASS_MAGE:
+                    svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L9.19 8.63L2 9.24L7.46 13.06L5.88 20.02L12 16.18L18.12 20.02L16.54 13.06L22 9.24L14.81 8.63L12 2Z"/></svg>`; // Star icon
+                    break;
+                case CLASS_ARCHER:
+                    svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 12h5v10h10V12h5L12 2z"/></svg>`; // Up arrow icon
+                    break;
+                case CLASS_TANKER:
+                    svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 2.23L19.46 6.5l-7.46 3.32-7.46-3.32L12 3.23zm0 16.74c-3.87-1.14-7-5.06-7-10.74V6.91l7-3.11 7 3.11v6.22c0 5.68-3.13 9.6-7 10.74z"/></svg>`; // Shield icon
+                    break;
+            }
+
+            // Unique ability description (based on Class)
+            let abilityDescription = '';
+            switch (randomClass) {
+                case CLASS_SWORDMAN:
+                    abilityDescription = 'สามารถดันระเบิดที่อยู่ใต้เท้าได้!';
+                    break;
+                case CLASS_MAGE:
+                    abilityDescription = 'สามารถวาร์ปหนีการระเบิดได้!';
+                    break;
+                case CLASS_ARCHER:
+                    abilityDescription = 'สามารถถอยหนีระเบิดได้!';
+                    break;
+                case CLASS_TANKER:
+                    abilityDescription = 'ทนทานต่อการระเบิดได้หนึ่งครั้ง!';
+                    break;
+            }
+
+            return {
+                id: id,
+                name: name,
+                x: x,
+                y: y,
+                bombCount: BOMBERMAN_INITIAL_BOMBS,
+                explosionRadius: BOMBERMAN_INITIAL_RADIUS,
+                isAlive: true,
+                moveCooldown: 0,
+                bombCooldown: 0,
+                skillCooldown: 0, // Cooldown for class skill
+                currentClass: randomClass, // Assigned class
+                color: color,
+                svgIcon: svgIcon, // Add SVG icon property
+                ability: abilityDescription, // Property for ability
+                // AI specific properties
+                targetX: x,
+                targetY: y,
+                path: [],
+                state: 'idle',
+                hitsTaken: 0 // For Tanker class or general damage tracking
+            };
+        }
+
+        /**
+         * The main game loop, called repeatedly using requestAnimationFrame.
+         */
+        let frameSkipCounter = 0;
+        const FRAME_SKIP = 2; // Increase this value to slow down the game (e.g., 2 = half speed)
+
+        function gameLoop() {
+            if (gameRunning) {
+                if (frameSkipCounter === 0) {
+                    updateGame();
+                    drawGame();
+                    updateBombermanStatusDisplay();
+                    updateOverallStatusDisplay(); // Call new function here
+                    gameTick++;
+                }
+
+                frameSkipCounter = (frameSkipCounter + 1) % FRAME_SKIP;
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        /**
+         * Updates the game state (movement, bombs, explosions).
+         */
+        async function updateGame() {
+            // Check for map timeout
+            if (gameTick >= MAP_TIMEOUT_TICKS && gameRunning) {
+                gameRunning = false;
+                console.log("Map timed out! Initiating full map explosion.");
+                const newCommentary = document.createElement('p');
+                newCommentary.textContent = `หมดเวลา! สนามระเบิดตัวเอง!`;
+                commentaryLogElement.appendChild(newCommentary);
+                commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+
+                // Trigger full map explosion
+                for (let r = 0; r < MAP_ROWS; r++) {
+                    for (let c = 0; c < MAP_COLS; c++) {
+                        // Explode only if not an unbreakable wall or already empty
+                        if (gameMap[r][c] !== CELL_UNBREAKABLE_WALL && gameMap[r][c] !== CELL_INDESTRUCTIBLE_WALL) {
+                            explosions.push({ x: c, y: r, timer: EXPLOSION_DURATION_TICKS, type: 'center' });
+                            gameMap[r][c] = CELL_EMPTY; // Clear cell
+                        }
+                    }
+                }
+                // Eliminate all remaining bombermen
+                bombermen.forEach(bm => {
+                    if (bm.isAlive) {
+                        bm.isAlive = false;
+                        recentDeaths.push(bm.id);
+                    }
+                });
+
+                // Proceed to end round after a short delay for explosion animation
+                setTimeout(() => {
+                    endRound();
+                }, EXPLOSION_DURATION_TICKS * (1000 / 60)); // Wait for explosion animation to finish
+                return;
+            }
+
+
+            // Check for game over condition
+            const aliveBombermen = bombermen.filter(bm => bm.isAlive);
+            if (aliveBombermen.length <= 1 && gameRunning) {
+                gameRunning = false;
+                endRound();
+                return;
+            }
+
+            // Update bombermen AI and state
+            bombermen.forEach(bm => {
+                if (!bm.isAlive) return;
+
+                // Decrement cooldowns
+                if (bm.moveCooldown > 0) bm.moveCooldown--;
+                if (bm.bombCooldown > 0) bm.bombCooldown--;
+                if (bm.skillCooldown > 0) bm.skillCooldown--; // Decrease skill cooldown
+
+                // Check for treasure collection
+                if (gameMap[bm.y][bm.x] === CELL_TREASURE) {
+                    gameMap[bm.y][bm.x] = CELL_EMPTY; // Remove treasure
+                    bm.explosionRadius++; // Increase explosion radius
+                    console.log(`Bomberman ${bm.id} collected a treasure! Explosion radius increased to ${bm.explosionRadius}`);
+                    // Add commentary for treasure collection
+                    const newCommentary = document.createElement('p');
+                    newCommentary.textContent = `${bm.name} (อาชีพ: ${bm.currentClass}) ได้สมบัติลับ! ตอนนี้ใครโดนระเบิดคงไม่รอดแน่!`;
+                    commentaryLogElement.appendChild(newCommentary);
+                    commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                }
+
+                let moved = false;
+                const threat = isThreatened(bm.x, bm.y);
+
+                // Prioritize evading explosions
+                if (threat) {
+                    bm.state = 'evading';
+                    const safeDirections = getSafeDirections(bm.x, bm.y);
+                    if (safeDirections.length > 0) {
+                        const dir = safeDirections[Math.floor(Math.random() * safeDirections.length)];
+                        if (tryMove(bm, dir.dx, dir.dy)) {
+                            moved = true;
+                        }
+                    }
+
+                    // Archer skill: Step back if no immediate safe spot and threatened
+                    if (!moved && bm.currentClass === CLASS_ARCHER && bm.skillCooldown === 0) {
+                        let closestBomb = null;
+                        let minDist = Infinity;
+                        for (const bomb of bombs) {
+                            if (bomb.timer < THREAT_DETECTION_TIMER_THRESHOLD) {
+                                const affectedCells = getAffectedCellsByBomb(bomb);
+                                if (affectedCells.some(cell => cell.x === bm.x && cell.y === bm.y)) {
+                                    const dist = Math.abs(bomb.x - bm.x) + Math.abs(bomb.y - bm.y);
+                                    if (dist < minDist) {
+                                        minDist = dist;
+                                        closestBomb = bomb;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (closestBomb) {
+                            let dx = 0, dy = 0;
+                            if (closestBomb.x === bm.x) { // Bomb is vertical
+                                dy = bm.y > closestBomb.y ? 1 : -1; // Move away vertically
+                            } else if (closestBomb.y === bm.y) { // Bomb is horizontal
+                                dx = bm.x > closestBomb.x ? 1 : -1; // Move away horizontally
+                            }
+
+                            const newX = bm.x + dx;
+                            const newY = bm.y + dy;
+
+                            if (isValidMove(newX, newY) && !isBombAt(newX, newY) && !isThreatened(newX, newY)) {
+                                bm.x = newX;
+                                bm.y = newY;
+                                bm.skillCooldown = SKILL_COOLDOWN_TICKS;
+                                moved = true;
+                                console.log(`Bomberman ${bm.id} (Archer) stepped back to safety!`);
+                                const newCommentary = document.createElement('p');
+                                newCommentary.textContent = `บอมเบอร์แมน ${bm.name} (Archer) ถอยฉากหลบระเบิดอย่างเชี่ยวชาญ!`;
+                                commentaryLogElement.appendChild(newCommentary);
+                                commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                            }
+                        }
+                    }
+
+                    // Mage skill: Teleport if still threatened and no other escape
+                    if (!moved && bm.currentClass === CLASS_MAGE && bm.skillCooldown === 0) {
+                        const emptySpots = [];
+                        for (let r = 0; r < MAP_ROWS; r++) {
+                            for (let c = 0; c < MAP_COLS; c++) {
+                                // Ensure target spot is empty, no bomb, not threatened, and not an indestructible wall
+                                if (gameMap[r][c] === CELL_EMPTY && !isBombAt(c, r) && !isThreatened(c, r)) {
+                                    emptySpots.push({ x: c, y: r });
+                                }
+                            }
+                        }
+
+                        if (emptySpots.length > 0) {
+                            const targetSpot = emptySpots[Math.floor(Math.random() * emptySpots.length)];
+                            bm.x = targetSpot.x;
+                            bm.y = targetSpot.y;
+                            bm.skillCooldown = SKILL_COOLDOWN_TICKS;
+                            moved = true; // Mark as moved
+                            console.log(`Bomberman ${bm.id} (Mage) teleported to (${bm.x}, ${bm.y})!`);
+                            const newCommentary = document.createElement('p');
+                            newCommentary.textContent = `บอมเบอร์แมน ${bm.name} (Mage) วาร์ปหนีอันตรายอย่างรวดเร็ว!`;
+                            commentaryLogElement.appendChild(newCommentary);
+                            commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                        }
+                    }
+                }
+
+                if (!moved && bm.moveCooldown === 0) {
+                    // Prioritize moving towards treasure if visible and safe
+                    const nearestTreasure = findNearestTreasure(bm.x, bm.y);
+                    if (nearestTreasure) {
+                        // Simple pathfinding to treasure
+                        if (bm.x < nearestTreasure.x && tryMove(bm, 1, 0)) moved = true;
+                        else if (bm.x > nearestTreasure.x && tryMove(bm, -1, 0)) moved = true;
+                        else if (bm.y < nearestTreasure.y && tryMove(bm, 0, 1)) moved = true;
+                        else if (bm.y > nearestTreasure.y && tryMove(bm, 0, -1)) moved = true;
+                    }
+
+                    if (!moved) { // If no target or couldn't move towards it, try random
+                        // Random movement or target a breakable wall
+                        if (Math.random() < 0.7) { // 70% chance to try moving
+                            const targetWall = findNearestBreakableWall(bm.x, bm.y);
+                            if (targetWall) {
+                                // Simple pathfinding (move towards target X or Y)
+                                if (bm.x < targetWall.x && tryMove(bm, 1, 0)) moved = true;
+                                else if (bm.x > targetWall.x && tryMove(bm, -1, 0)) moved = true;
+                                else if (bm.y < targetWall.y && tryMove(bm, 0, 1)) moved = true;
+                                else if (bm.y > targetWall.y && tryMove(bm, 0, -1)) moved = true;
+                            }
+
+                            if (!moved) { // If no target or couldn't move towards it, try random
+                                const randomDir = DIRECTION_ARRAY[Math.floor(Math.random() * DIRECTION_ARRAY.length)];
+                                if (tryMove(bm, randomDir.dx, randomDir.dy)) {
+                                    moved = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (moved) {
+                        bm.moveCooldown = BOMBERMAN_MOVE_COOLDOWN;
+                    }
+                }
+
+                // Swordman skill: Push bomb if moved onto it
+                if (bm.currentClass === CLASS_SWORDMAN && bm.skillCooldown === 0) {
+                    const bombAtBmPos = bombs.find(b => b.x === bm.x && b.y === bm.y);
+                    if (bombAtBmPos) {
+                        let pushed = false;
+                        for (const dir of DIRECTION_ARRAY) {
+                            const newBombX = bombAtBmPos.x + dir.dx;
+                            const newBombY = bombAtBmPos.y + dir.dy;
+                            // Can only push if target cell is empty and not an indestructible wall
+                            if (isValidGridCoord(newBombX, newBombY) && gameMap[newBombY][newBombX] === CELL_EMPTY && !isBombAt(newBombX, newBombY)) {
+                                bombAtBmPos.x = newBombX;
+                                bombAtBmPos.y = newBombY;
+                                bm.skillCooldown = SKILL_COOLDOWN_TICKS;
+                                pushed = true;
+                                console.log(`Bomberman ${bm.id} (Swordman) pushed a bomb!`);
+                                const newCommentary = document.createElement('p');
+                                newCommentary.textContent = `บอมเบอร์แมน ${bm.name} (Swordman) ดันระเบิดออกไปอย่างชำนาญ!`;
+                                commentaryLogElement.appendChild(newCommentary);
+                                commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                                break; // Pushed one bomb, done
+                            }
+                        }
+                    }
+                }
+
+
+                // Bomb dropping logic
+                if (bm.bombCooldown === 0 && bm.bombCount > 0 && !isBombAt(bm.x, bm.y)) {
+                    // Drop bomb only if there's a breakable wall or another bomberman nearby
+                    const shouldDrop = checkAdjacentForTarget(bm.x, bm.y) || Math.random() < 0.05; // Small random chance
+                    if (shouldDrop) {
+                        bombs.push({
+                            x: bm.x,
+                            y: bm.y,
+                            timer: BOMB_TIMER_TICKS,
+                            radius: bm.explosionRadius,
+                            ownerId: bm.id
+                        });
+                        bm.bombCount--;
+                        bm.bombCooldown = BOMBERMAN_BOMB_COOLDOWN;
+                        recentBombDrops.push({ x: bm.x, y: bm.y, ownerId: bm.id });
+                    }
+                }
+            });
+
+            // Update bombs
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                const bomb = bombs[i];
+                bomb.timer--;
+
+                if (bomb.timer <= 0) {
+                    explodeBomb(bomb);
+                    bombs.splice(i, 1);
+                    // Return bomb to owner (if still alive)
+                    const owner = bombermen.find(bm => bm.id === bomb.ownerId);
+                    if (owner && owner.isAlive) {
+                        owner.bombCount++;
+                    }
+                }
+            }
+
+            // Update explosions
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const exp = explosions[i];
+                exp.timer--;
+                if (exp.timer <= 0) {
+                    explosions.splice(i, 1);
+                }
+            }
+
+            // Trigger automatic commentary
+            if (gameRunning && (gameTick - lastAutoCommentaryTick >= AUTO_COMMENTARY_INTERVAL || recentDeaths.length > 0 || recentBombDrops.length > 0)) {
+                await generateGameCommentary();
+                lastAutoCommentaryTick = gameTick;
+                recentDeaths = []; // Clear recent deaths after commentary
+                recentBombDrops = []; // Clear recent bomb drops after commentary
+            }
+        }
+
+        /**
+         * Ends the current round, updates stats, and prepares for the next.
+         */
+        function endRound() {
+            // Update stats for the round
+            roundCount++;
+            bombermen.forEach(bm => {
+                if (bombermanStats[bm.id]) {
+                    bombermanStats[bm.id].roundsPlayed++;
+                    if (bm.isAlive) { // If they survived this round
+                        bombermanStats[bm.id].totalSurvivalTime += gameTick; // Add current gameTick to survival time
+                    }
+                }
+            });
+
+            const aliveBombermen = bombermen.filter(bm => bm.isAlive);
+            if (aliveBombermen.length === 1) {
+                const winnerId = aliveBombermen[0].id;
+                const winnerName = aliveBombermen[0].name;
+                showMessage(`บอมเบอร์แมน ${winnerName} ชนะรอบที่ ${roundCount}!`);
+                if (bombermanStats[winnerId]) {
+                    bombermanStats[winnerId].wins++;
+                }
+            } else {
+                showMessage(`รอบที่ ${roundCount} เสมอ! ไม่มีใครรอด.`);
+            }
+
+            // After showing message, decide whether to restart or show final ranking
+            setTimeout(() => {
+                if (roundCount < MAX_ROUNDS) {
+                    resetGame(false); // Start new round, don't reset stats
+                } else {
+                    displayFinalRanking();
+                }
+            }, 3000); // Wait 3 seconds before proceeding
+        }
+
+        /**
+         * Helper function to get all cells affected by a bomb's explosion.
+         * Accounts for walls blocking the explosion path.
+         * @param {object} bomb - The bomb object.
+         * @returns {Array<object>} An array of {x, y} coordinates of affected cells.
+         */
+        function getAffectedCellsByBomb(bomb) {
+            const affected = new Set();
+            affected.add(`${bomb.x},${bomb.y}`); // Center
+
+            for (const dir of DIRECTION_ARRAY) {
+                for (let i = 1; i <= bomb.radius; i++) {
+                    const currentX = bomb.x + dir.dx * i;
+                    const currentY = bomb.y + dir.dy * i;
+
+                    if (!isValidGridCoord(currentX, currentY)) break;
+
+                    const cellType = gameMap[currentY][currentX];
+
+                    if (cellType === CELL_UNBREAKABLE_WALL || cellType === CELL_INDESTRUCTIBLE_WALL) { // Unbreakable wall blocks explosion
+                        break; // Stop explosion path
+                    }
+
+                    affected.add(`${currentX},${currentY}`);
+
+                    if (cellType === CELL_BREAKABLE_WALL) {
+                        break; // Stop explosion path after hitting a breakable wall
+                    }
+                }
+            }
+            return Array.from(affected).map(coord => {
+                const [x, y] = coord.split(',').map(Number);
+                return { x, y };
+            });
+        }
+
+        /**
+         * Checks if a bomberman is threatened by an upcoming explosion.
+         * @param {number} x - X grid coordinate.
+         * @param {number} y - Y grid coordinate.
+         * @returns {boolean} True if threatened, false otherwise.
+         */
+        function isThreatened(x, y) {
+            for (const bomb of bombs) {
+                // Only consider bombs that are about to explode within a threshold
+                if (bomb.timer < THREAT_DETECTION_TIMER_THRESHOLD) {
+                    const affectedCells = getAffectedCellsByBomb(bomb);
+                    if (affectedCells.some(cell => cell.x === x && cell.y === y)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Finds safe directions for a bomberman to move to evade an explosion.
+         * @param {number} x - Current X grid coordinate.
+         * @param {number} y - Current Y grid coordinate.
+         * @returns {Array<object>} An array of safe direction objects ({dx, dy}).
+         */
+        function getSafeDirections(x, y) {
+            const safeDirs = [];
+            for (const dir of DIRECTION_ARRAY) {
+                const newX = x + dir.dx;
+                const newY = y + dir.dy;
+                // A safe direction is one where the new cell is walkable AND not threatened AND not an indestructible wall
+                if (isValidMove(newX, newY) && !isThreatened(newX, newY) && gameMap[newY][newX] !== CELL_INDESTRUCTIBLE_WALL) {
+                    safeDirs.push(dir);
+                }
+            }
+            return safeDirs;
+        }
+
+        /**
+         * Attempts to move a bomberman.
+         * @param {object} bm - The bomberman object.
+         * @param {number} dx - Change in X.
+         * @param {number} dy - Change in Y.
+         * @returns {boolean} True if move was successful, false otherwise.
+         */
+        function tryMove(bm, dx, dy) {
+            const newX = bm.x + dx;
+            const newY = bm.y + dy;
+
+            // Cannot move into indestructible walls
+            if (isValidGridCoord(newX, newY) && gameMap[newY][newX] === CELL_INDESTRUCTIBLE_WALL) {
+                return false;
+            }
+
+            if (isValidMove(newX, newY) && !isBombAt(newX, newY)) {
+                bm.x = newX;
+                bm.y = newY;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Checks if there's a bomb at the given grid coordinates.
+         * @param {number} x - X grid coordinate.
+         * @param {number} number} y - Y grid coordinate.
+         * @returns {boolean} True if a bomb exists at the coordinates, false otherwise.
+         */
+        function isBombAt(x, y) {
+            return bombs.some(bomb => bomb.x === x && bomb.y === y);
+        }
+
+        /**
+         * Checks adjacent cells for breakable walls or other bombermen.
+         * @param {number} x - X grid coordinate.
+         * @param {number} y - Y grid coordinate.
+         * @returns {boolean} True if a target is found, false otherwise.
+         */
+        function checkAdjacentForTarget(x, y) {
+            for (const dir of DIRECTION_ARRAY) {
+                const nx = x + dir.dx;
+                const ny = y + dir.dy;
+                if (isValidGridCoord(nx, ny)) {
+                    if (gameMap[ny][nx] === CELL_BREAKABLE_WALL) return true;
+                    if (bombermen.some(bm => bm.isAlive && bm.x === nx && bm.y === ny && bm.id !== this.id)) return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Finds the nearest breakable wall for a bomberman to target.
+         * @param {number} startX - Bombermen's X coordinate.
+         * @param {number} startY - Bombermen's Y coordinate.
+         * @returns {object|null} The nearest breakable wall's coordinates or null if none found.
+         */
+        function findNearestBreakableWall(startX, startY) {
+            let nearestWall = null;
+            let minDistance = Infinity;
+
+            for (let r = 0; r < MAP_ROWS; r++) {
+                for (let c = 0; c < MAP_COLS; c++) {
+                    if (gameMap[r][c] === CELL_BREAKABLE_WALL) {
+                        const distance = Math.abs(startX - c) + Math.abs(startY - r); // Manhattan distance
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestWall = { x: c, y: r };
+                        }
+                    }
+                }
+            }
+            return nearestWall;
+        }
+
+        /**
+         * Finds the nearest treasure for a bomberman to target.
+         * @param {number} startX - Bombermen's X coordinate.
+         * @param {number} startY - Bombermen's Y coordinate.
+         * @returns {object|null} The nearest treasure's coordinates or null if none found.
+         */
+        function findNearestTreasure(startX, startY) {
+            let nearestTreasure = null;
+            let minDistance = Infinity;
+
+            for (let r = 0; r < MAP_ROWS; r++) {
+                for (let c = 0; c < MAP_COLS; c++) {
+                    if (gameMap[r][c] === CELL_TREASURE) {
+                        const distance = Math.abs(startX - c) + Math.abs(startY - r); // Manhattan distance
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestTreasure = { x: c, y: r };
+                        }
+                    }
+                }
+            }
+            return nearestTreasure;
+        }
+
+        /**
+         * Handles the explosion of a bomb.
+         * @param {object} bomb - The bomb object that is exploding.
+         */
+        function explodeBomb(bomb) {
+            const affectedCells = getAffectedCellsByBomb(bomb); // Use new helper function
+
+            // Add explosion effect at the center
+            explosions.push({ x: bomb.x, y: bomb.y, timer: EXPLOSION_DURATION_TICKS, type: 'center' });
+
+            // Add explosion effects for arms based on affected cells
+            affectedCells.forEach(cell => {
+                if (cell.x === bomb.x && cell.y === bomb.y) return; // Skip center, already added
+
+                let type = 'arm';
+                if (cell.x === bomb.x) type = 'vertical';
+                else if (cell.y === bomb.y) type = 'horizontal';
+
+                // Determine end pieces for visual variety
+                const isEndOfLine = (dir) => {
+                    const nextX = cell.x + dir.dx;
+                    const nextY = cell.y + dir.dy;
+                    return !isValidGridCoord(nextX, nextY) || gameMap[nextY][nextX] === CELL_UNBREAKABLE_WALL || gameMap[nextY][nextX] === CELL_BREAKABLE_WALL || gameMap[nextY][nextX] === CELL_INDESTRUCTIBLE_WALL;
+                };
+
+                if (cell.x === bomb.x) { // Vertical
+                    if (cell.y > bomb.y && isEndOfLine(DIRECTIONS.DOWN)) type = 'down-end';
+                    if (cell.y < bomb.y && isEndOfLine(DIRECTIONS.UP)) type = 'up-end';
+                } else if (cell.y === bomb.y) { // Horizontal
+                    if (cell.x > bomb.x && isEndOfLine(DIRECTIONS.RIGHT)) type = 'right-end';
+                    if (cell.x < bomb.x && isEndOfLine(DIRECTIONS.LEFT)) type = 'left-end';
+                }
+
+                explosions.push({ x: cell.x, y: cell.y, timer: EXPLOSION_DURATION_TICKS, type: type });
+
+                // Check for breakable walls and destroy them
+                if (gameMap[cell.y][cell.x] === CELL_BREAKABLE_WALL) {
+                    gameMap[cell.y][cell.x] = CELL_EMPTY;
+                    // Chance for treasure to spawn after destroying a breakable wall
+                    if (Math.random() < TREASURE_SPAWN_CHANCE) {
+                        gameMap[cell.y][cell.x] = CELL_TREASURE;
+                    }
+                }
+
+                // Check for other bombs and trigger chain reactions
+                const chainedBombIndex = bombs.findIndex(b => b.x === cell.x && b.y === cell.y);
+                if (chainedBombIndex !== -1) {
+                    bombs[chainedBombIndex].timer = 1; // Set timer to 1 to explode in next tick
+                }
+            });
+
+
+            // Check for bombermen hit by explosion
+            bombermen.forEach(bm => {
+                if (bm.isAlive) {
+                    const hit = affectedCells.some(cell => cell.x === bm.x && cell.y === bm.y);
+                    if (hit) {
+                        // Tanker skill: Endure one bomb explosion
+                        if (bm.currentClass === CLASS_TANKER && bm.skillCooldown === 0) {
+                            bm.skillCooldown = SKILL_COOLDOWN_TICKS;
+                            console.log(`Bomberman ${bm.id} (Tanker) endured an explosion!`);
+                            const newCommentary = document.createElement('p');
+                            newCommentary.textContent = `บอมเบอร์แมน ${bm.name} (Tanker) ทนทานต่อการระเบิดด้วยพลังป้องกันอันยิ่งใหญ่!`;
+                            commentaryLogElement.appendChild(newCommentary);
+                            commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                        } else {
+                            bm.isAlive = false;
+                            recentDeaths.push(bm.id); // Add to recent deaths for commentary
+                            console.log(`Bomberman ${bm.id} was killed!`);
+
+                            // Award kill to bomb owner if they are still alive
+                            const killer = bombermen.find(k => k.id === bomb.ownerId);
+                            if (killer && killer.isAlive && bombermanStats[killer.id]) {
+                                bombermanStats[killer.id].kills++;
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        /**
+         * Checks if given grid coordinates are within the map bounds.
+         * @param {number} x - X grid coordinate.
+         * @param {number} y - Y grid coordinate.
+         * @returns {boolean} True if coordinates are valid, false otherwise.
+         */
+        function isValidGridCoord(x, y) {
+            return x >= 0 && x < MAP_COLS && y >= 0 && y < MAP_ROWS;
+        }
+
+        /**
+         * Checks if a move to the given grid coordinates is valid (not a wall).
+         * @param {number} x - X grid coordinate.
+         * @param {number} y - Y grid coordinate.
+         * @returns {boolean} True if the cell is walkable, false otherwise.
+         */
+        function isValidMove(x, y) {
+            return isValidGridCoord(x, y) && gameMap[y][x] !== CELL_UNBREAKABLE_WALL && gameMap[y][x] !== CELL_BREAKABLE_WALL && gameMap[y][x] !== CELL_INDESTRUCTIBLE_WALL;
+        }
+
+        /**
+         * Draws all game elements on the canvas.
+         */
+        function drawGame() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw map
+            for (let r = 0; r < MAP_ROWS; r++) {
+                for (let c = 0; c < MAP_COLS; c++) {
+                    const x = c * GRID_SIZE;
+                    const y = r * GRID_SIZE;
+                    switch (gameMap[r][c]) {
+                        case CELL_UNBREAKABLE_WALL:
+                            drawRect(x, y, GRID_SIZE, GRID_SIZE, unbreakableWallColor, unbreakableWallColor, 10);
+                            break;
+                        case CELL_BREAKABLE_WALL:
+                            drawRect(x, y, GRID_SIZE, GRID_SIZE, breakableWallColor, breakableWallColor, 8);
+                            break;
+                        case CELL_EMPTY:
+                            // Background is already drawn by canvas background color
+                            break;
+                        case CELL_TREASURE:
+                            drawTreasure(x, y, GRID_SIZE, COLOR_TREASURE, COLOR_TREASURE, 8);
+                            break;
+                        case CELL_INDESTRUCTIBLE_WALL:
+                            drawRect(x, y, GRID_SIZE, GRID_SIZE, COLOR_INDESTRUCTIBLE_WALL, COLOR_INDESTRUCTIBLE_WALL, 10);
+                            break;
+                    }
+                }
+            }
+
+            // Draw bombs
+            bombs.forEach(bomb => {
+                const x = bomb.x * GRID_SIZE + GRID_SIZE / 2;
+                const y = bomb.y * GRID_SIZE + GRID_SIZE / 2;
+                const radius = GRID_SIZE / 3;
+                drawCircle(x, y, radius, COLOR_BOMB, COLOR_BOMB, 7); // Red bomb, red glow
+                // Draw small timer indicator
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 10px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(Math.ceil(bomb.timer / 60), x, y);
+            });
+
+            // Draw explosions
+            explosions.forEach(exp => {
+                const x = exp.x * GRID_SIZE;
+                const y = exp.y * GRID_SIZE;
+                let baseColor = explosionArmColor;
+                let glowColor = explosionArmColor;
+                let glowBlur = 5;
+
+                // Simple visual for explosion type
+                if (exp.type === 'center') {
+                    baseColor = explosionCenterColor;
+                    glowColor = explosionCenterColor;
+                    glowBlur = 12; // More intense glow for center
+                }
+
+                drawRect(x, y, GRID_SIZE, GRID_SIZE, baseColor, glowColor, glowBlur);
+
+                // Add pulsing effect for explosions
+                const pulse = Math.sin(exp.timer * 0.5) * 2; // Smaller pulse for thinner boxes
+                ctx.strokeStyle = `rgba(0, 0, 0, ${exp.timer / EXPLOSION_DURATION_TICKS})`; /* Black stroke for explosions */
+                ctx.lineWidth = 1;
+                ctx.strokeRect(x + pulse / 2, y + pulse / 2, GRID_SIZE - pulse, GRID_SIZE - pulse);
+            });
+
+
+            // Draw bombermen
+            bombermen.forEach(bm => {
+                if (bm.isAlive) {
+                    const x = bm.x * GRID_SIZE + GRID_SIZE / 2;
+                    const y = bm.y * GRID_SIZE + GRID_SIZE / 2;
+                    const radius = GRID_SIZE / 3;
+                    drawCircle(x, y, radius, bm.color, bm.color, 7); // Use bomberman's assigned color with glow
+
+                    // Draw bomberman ID
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 12px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(bm.id, x, y);
+                }
+            });
+
+            // Update round display
+            roundDisplayElement.textContent = roundCount;
+        }
+
+        /**
+         * Helper function to draw a filled rectangle with optional glow.
+         * @param {number} x - X pixel coordinate.
+         * @param {number} y - Y pixel coordinate.
+         * @param {number} width - Width in pixels.
+         * @param {number} height - Height in pixels.
+         * @param {string} color - Fill color.
+         * @param {string} glowColor - Color of the glow.
+         * @param {number} glowBlur - Blur radius for the glow.
+         */
+        function drawRect(x, y, width, height, color, glowColor = null, glowBlur = 0) {
+            ctx.fillStyle = color;
+            if (glowColor && glowBlur > 0) {
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = glowBlur;
+            }
+            ctx.fillRect(x, y, width, height);
+            /* Removed stroke for cleaner glow effect */
+            ctx.shadowBlur = 0; /* Reset shadow after drawing */
+            ctx.shadowColor = 'transparent';
+        }
+
+        /**
+         * Helper function to draw a filled circle with optional glow.
+         * @param {number} x - Center X pixel coordinate.
+         * @param {number} y - Center Y pixel coordinate.
+         * @param {number} radius - Radius in pixels.
+         * @param {string} color - Fill color.
+         * @param {string} glowColor - Color of the glow.
+         * @param {number} glowBlur - Blur radius for the glow.
+         */
+        function drawCircle(x, y, radius, color, glowColor = null, glowBlur = 5) {
+            ctx.fillStyle = color;
+            if (glowColor && glowBlur > 0) {
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = glowBlur;
+            }
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            /* Removed stroke for cleaner glow effect */
+            ctx.shadowBlur = 0; /* Reset shadow after drawing */
+            ctx.shadowColor = 'transparent';
+        }
+
+        /**
+         * Helper function to draw a treasure with optional glow.
+         * @param {number} x - X pixel coordinate.
+         * @param {number} y - Y pixel coordinate.
+         * @param {number} size - Size of the cell.
+         * @param {string} color - Fill color.
+         * @param {string} glowColor - Color of the glow.
+         * @param {number} glowBlur - Blur radius for the glow.
+         */
+        function drawTreasure(x, y, size, color, glowColor = null, glowBlur = 8) {
+            ctx.fillStyle = color;
+            if (glowColor && glowBlur > 0) {
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur = glowBlur;
+            }
+            ctx.beginPath();
+            // Draw diamond shape
+            ctx.moveTo(x + size / 2, y + size * 0.1);
+            ctx.lineTo(x + size * 0.9, y + size / 2);
+            ctx.lineTo(x + size / 2, y + size * 0.9);
+            ctx.lineTo(x + size * 0.1, y + size / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#8B4513'; // Brown border for treasure
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.shadowBlur = 0; /* Reset shadow after drawing */
+            ctx.shadowColor = 'transparent';
+        }
+
+        /**
+         * Displays a message box with the given text and a play again button.
+         * @param {string} message - The message to display.
+         */
+        function showMessage(message) {
+            messageBox.innerHTML = `
+                <div>${message}</div>
+                <button id="playAgainBtn" class="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-md shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                    รอบถัดไป!
+                </button>
+            `;
+            messageBox.style.display = 'block';
+            document.getElementById('playAgainBtn').onclick = () => {
+                messageBox.style.display = 'none';
+                // This button only appears when roundCount < MAX_ROUNDS, so no full reset here
+            };
+        }
+
+        /**
+         * Displays the final ranking table.
+         */
+        function displayFinalRanking() {
+            let rankingHtml = `
+                <h2 class="text-2xl font-bold mb-4 text-white">อันดับสุดท้าย (${MAX_ROUNDS} รอบ)</h2>
+                <table class="min-w-full bg-gray-700 rounded-lg overflow-hidden">
+                    <thead>
+                        <tr>
+                            <th class="py-2 px-4 bg-gray-800 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider rounded-tl-lg">อันดับ</th>
+                            <th class="py-2 px-4 bg-gray-800 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">บอมเบอร์แมน</th>
+                            <th class="py-2 px-4 bg-gray-800 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">ชนะ</th>
+                            <th class="py-2 px-4 bg-gray-800 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider">ฆ่า</th>
+                            <th class="py-2 px-4 bg-gray-800 text-left text-xs font-semibold text-gray-300 uppercase tracking-wider rounded-tr-lg">เวลาอยู่รอดเฉลี่ย</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-600">
+            `;
+
+            // Convert stats object to array, sort by wins, then kills, then survival time
+            const sortedStats = Object.values(bombermanStats).sort((a, b) => {
+                if (b.wins !== a.wins) return b.wins - a.wins;
+                if (b.kills !== a.kills) return b.kills - a.kills;
+                const avgA = a.roundsPlayed > 0 ? a.totalSurvivalTime / a.roundsPlayed : 0;
+                const avgB = b.roundsPlayed > 0 ? b.totalSurvivalTime / b.roundsPlayed : 0;
+                return avgB - avgA;
+            });
+
+            sortedStats.forEach((stat, index) => {
+                const avgSurvival = stat.roundsPlayed > 0 ? (stat.totalSurvivalTime / stat.roundsPlayed / 60).toFixed(1) + 's' : 'N/A';
+                rankingHtml += `
+                    <tr class="${index % 2 === 0 ? 'bg-gray-700' : 'bg-gray-600'}">
+                        <td class="py-2 px-4 whitespace-nowrap text-sm font-medium text-white">${index + 1}</td>
+                        <td class="py-2 px-4 whitespace-nowrap text-sm text-gray-200">บอมเบอร์แมน ${stat.id}</td>
+                        <td class="py-2 px-4 whitespace-nowrap text-sm text-gray-200">${stat.wins}</td>
+                        <td class="py-2 px-4 whitespace-nowrap text-sm text-gray-200">${stat.kills}</td>
+                        <td class="py-2 px-4 whitespace-nowrap text-sm text-gray-200">${avgSurvival}</td>
+                    </tr>
+                `;
+            });
+
+            rankingHtml += `
+                    </tbody>
+                </table>
+                <button id="playAgainFullResetBtn" class="mt-6 px-8 py-4 bg-green-500 hover:bg-green-600 text-white font-bold rounded-md shadow-lg transition duration-300 ease-in-out transform hover:scale-105">
+                    เล่นใหม่ทั้งหมด!
+                </button>
+            `;
+
+            messageBox.innerHTML = rankingHtml;
+            messageBox.style.display = 'block';
+
+            document.getElementById('playAgainFullResetBtn').onclick = () => {
+                messageBox.style.display = 'none';
+                resetGame(true); // Full reset
+            };
+        }
+
+        /**
+         * Updates the bomberman status display panel.
+         */
+        function updateBombermanStatusDisplay() {
+            if (!bombermanListElement) return; // Ensure element exists
+
+            bombermanListElement.innerHTML = ''; // Clear existing cards
+
+            bombermen.forEach(bm => {
+                const bombermanCard = document.createElement('div');
+                bombermanCard.className = 'bomberman-card flex flex-col items-center p-2 rounded-lg shadow-md'; // Add Tailwind classes
+
+                // SVG Icon Container
+                const iconContainer = document.createElement('div');
+                iconContainer.className = 'bomberman-image-container';
+                iconContainer.innerHTML = bm.svgIcon; // Insert the SVG icon
+                bombermanCard.appendChild(iconContainer);
+
+                // Name
+                const nameElement = document.createElement('h3');
+                nameElement.className = 'text-lg font-bold text-yellow-300 mb-1'; // Tailwind for name
+                nameElement.textContent = bm.name;
+                bombermanCard.appendChild(nameElement);
+
+                // ID, Class, Status, Bombs, Radius, Ability (Concise)
+                const statsContainer = document.createElement('div');
+                statsContainer.className = 'text-sm text-gray-200 text-left w-full'; // Container for stats
+                statsContainer.innerHTML = `
+                    <p><strong>ID:</strong> ${bm.id}</p>
+                    <p><strong>อาชีพ:</strong> ${bm.currentClass.charAt(0).toUpperCase() + bm.currentClass.slice(1)}</p>
+                    <p><strong>สถานะ:</strong> <span class="${bm.isAlive ? 'text-green-400' : 'text-red-400'}">${bm.isAlive ? 'มีชีวิต' : 'ถูกกำจัด'}</span></p>
+                    <p><strong>บอมบ์:</strong> ${bm.bombCount} | <strong>รัศมี:</strong> ${bm.explosionRadius}</p>
+                    <p><strong>ความสามารถ:</strong> ${bm.ability}</p>
+                `;
+                bombermanCard.appendChild(statsContainer);
+
+                bombermanListElement.appendChild(bombermanCard);
+            });
+        }
+
+        /**
+         * Updates the overall bomberman status display with circles.
+         */
+        function updateOverallStatusDisplay() {
+            if (!overallBombermanStatusListElement) return;
+
+            overallBombermanStatusListElement.innerHTML = ''; // Clear existing circles
+
+            bombermen.forEach(bm => {
+                const statusCircle = document.createElement('div');
+                statusCircle.className = `status-circle ${bm.isAlive ? 'alive' : 'eliminated'}`;
+                statusCircle.textContent = bm.id; // Display bomberman ID in the circle
+                overallBombermanStatusListElement.appendChild(statusCircle);
+            });
+        }
+
+        /**
+         * Function to update map colors based on mode
+         */
+        function updateMapColors() {
+            switch (mapMode) {
+                case 'go':
+                    canvas.style.backgroundColor = '#FFFFFF'; // White background for Go board
+                    unbreakableWallColor = '#000000'; // Black lines
+                    breakableWallColor = '#333333'; // Dark gray breakable walls
+                    COLOR_INDESTRUCTIBLE_WALL = '#222222'; // Darker gray indestructible walls
+                    break;
+                case 'black':
+                    canvas.style.backgroundColor = '#000000'; // Black background
+                    unbreakableWallColor = '#BBBBBB'; // Light gray unbreakable walls
+                    breakableWallColor = '#888888'; // Gray breakable walls
+                    COLOR_INDESTRUCTIBLE_WALL = '#666666'; // Darker gray indestructible walls
+                    break;
+                case 'white':
+                    canvas.style.backgroundColor = '#FFFFFF'; // White background
+                    unbreakableWallColor = '#333333'; // Dark gray unbreakable walls
+                    breakableWallColor = '#AAAAAA'; // Light gray breakable walls
+                    COLOR_INDESTRUCTIBLE_WALL = '#666666'; // Gray indestructible walls
+                    break;
+            }
+            // Explosion colors remain dynamic
+            explosionCenterColor = getRandomHslColor(100, 60);
+            explosionArmColor = getRandomHslColor(100, 70);
+        }
+
+        /**
+         * Function to cycle map modes
+         */
+        function cycleMapMode() {
+            const modes = ['go', 'black', 'white'];
+            let currentIndex = modes.indexOf(mapMode);
+            mapMode = modes[(currentIndex + 1) % modes.length];
+            updateMapColors();
+            updateMapModeButtonText();
+            drawGame(); // Redraw the map with new colors
+        }
+
+        /**
+         * Function to update the map mode button text
+         */
+        function updateMapModeButtonText() {
+            if (changeMapModeBtn) {
+                let text = '';
+                switch (mapMode) {
+                    case 'go': text = 'โหมด: กระดานหมากล้อม'; break;
+                    case 'black': text = 'โหมด: ดำ'; break;
+                    case 'white': text = 'โหมด: ขาว'; break;
+                }
+                changeMapModeBtn.textContent = text;
+            }
+        }
+
+
+        /**
+         * Resets the game to its initial state.
+         * @param {boolean} fullReset - If true, resets round count and all bomberman stats.
+         */
+        function resetGame(fullReset = true) {
+            gameRunning = false; // Stop current loop
+            bombermen = [];
+            bombs = [];
+            explosions = [];
+            gameTick = 0;
+            messageBox.style.display = 'none'; // Hide message box
+
+            if (fullReset) {
+                roundCount = 0;
+                bombermanStats = {}; // Clear all stats for a new game
+                commentaryLogElement.innerHTML = '<p>ยินดีต้อนรับสู่ Idle Bomberman Arena! เตรียมพร้อมสำหรับการต่อสู้สุดระเบิด!</p>';
+            }
+
+            initGame(fullReset); // Reinitialize everything
+        }
+
+        /**
+         * Generates a simple fallback commentary based on game state.
+         * @param {Array<object>} aliveBombermen - Array of currently alive bombermen.
+         * @param {Array<number>} recentDeaths - Array of IDs of recently killed bombermen.
+         * @param {Array<object>} recentBombDrops - Array of recently dropped bombs ({x, y, ownerId}).
+         * @returns {string} The fallback commentary string.
+         */
+        function generateFallbackCommentary(aliveBombermen, recentDeaths, recentBombDrops) {
+            let commentary = `รอบปัจจุบัน: ${roundCount}. `;
+            const remaining = aliveBombermen.length;
+
+            if (recentDeaths.length > 0) {
+                const deathNames = recentDeaths.map(id => bombermen.find(bm => bm.id === id)?.name || `บอมเบอร์แมน ${id}`).join(', ');
+                commentary += `โอ้โห! ${deathNames} ถูกกำจัดไปแล้ว! `;
+            }
+
+            if (recentBombDrops.length > 0) {
+                const bombDropperNames = recentBombDrops.map(b => bombermen.find(bm => bm.id === b.ownerId)?.name || `บอมเบอร์แมน ${b.ownerId}`).join(', ');
+                commentary += `${bombDropperNames} วางระเบิด! ระวังให้ดี! `;
+            }
+
+            if (remaining > 1) {
+                commentary += `เหลือบอมเบอร์แมน ${remaining} คนในสนาม. การต่อสู้ยังคงดำเนินต่อไป!`;
+            } else if (remaining === 1) {
+                commentary += `เหลือบอมเบอร์แมนเพียงคนเดียว! ${aliveBombermen[0].name} กำลังจะชนะ!`;
+            } else {
+                commentary += `ไม่มีบอมเบอร์แมนเหลืออยู่! รอบนี้ไม่มีผู้ชนะ!`;
+            }
+            return commentary;
+        }
+
+        /**
+         * Generates game commentary using the Gemini API or fallback mode.
+         */
+        async function generateGameCommentary() {
+            // Stop commentary if the game has ended
+            if (!gameRunning) {
+                generateCommentaryBtn.disabled = true; // Disable button permanently if game ended
+                generateCommentaryBtn.textContent = 'เกมจบแล้ว';
+                return;
+            }
+
+            generateCommentaryBtn.disabled = true;
+            generateCommentaryBtn.textContent = 'กำลังสร้าง...';
+
+            const aliveBombermen = bombermen.filter(bm => bm.isAlive);
+            let commentaryText = '';
+
+            if (useFallbackCommentary) {
+                commentaryText = generateFallbackCommentary(aliveBombermen, recentDeaths, recentBombDrops);
+                const newCommentary = document.createElement('p');
+                newCommentary.textContent = `[Fallback] ${commentaryText}`;
+                commentaryLogElement.appendChild(newCommentary);
+                commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+            } else {
+                let recentEventsSummary = '';
+
+                if (recentDeaths.length > 0) {
+                    const deathNames = recentDeaths.map(id => bombermen.find(bm => bm.id === id)?.name || `บอมเบอร์แมน ${id}`).join(', ');
+                    recentEventsSummary += `\n- การกำจัดล่าสุด: ${deathNames} ถูกกำจัด!`;
+                }
+                if (recentBombDrops.length > 0) {
+                    const bombDropperNames = recentBombDrops.map(b => bombermen.find(bm => bm.id === b.ownerId)?.name || `บอมเบอร์แมน ${b.ownerId}`).join(', ');
+                    recentEventsSummary += `\n- การวางระเบิดล่าสุด: ${bombDropperNames} เพิ่งวางระเบิด.`;
+                }
+
+                const prompt = `คุณคือผู้บรรยายกีฬาที่มีอารมณ์ขันและเร้าใจ กำลังรายงานสดเกม Bomberman ที่ AI ต่อสู้กันเอง โปรดอธิบายเหตุการณ์ในเกมแบบกระชับ ตื่นเต้น และตลกนิดๆ โดยใช้ภาษาพูดธรรมดา
+
+                สถานะเกม:
+                - ผู้เล่นที่ยังไม่ตาย: ${aliveBombermen.map(bm => `${bm.name} (อาชีพ: ${bm.currentClass}) ที่ (${bm.x}, ${bm.y})`).join(', ')}
+                - จำนวนระเบิดในสนาม: ${bombs.length}
+                ${recentEventsSummary}
+
+                โปรดแสดงคำบรรยายไทยสุดมันส์ 1 ย่อหน้า`;
+
+
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will provide this key at runtime
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        commentaryText = result.candidates[0].content.parts[0].text;
+                        const newCommentary = document.createElement('p');
+                        newCommentary.textContent = commentaryText;
+                        commentaryLogElement.appendChild(newCommentary);
+                        commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight; // Scroll to bottom
+                    } else {
+                        console.error("Gemini API response structure unexpected:", result);
+                        const errorMsg = document.createElement('p');
+                        errorMsg.textContent = "Commentary failed: Could not generate.";
+                        commentaryLogElement.appendChild(errorMsg);
+                        useFallbackCommentary = true; // Switch to fallback mode
+                        const fallbackMsg = document.createElement('p');
+                        fallbackMsg.textContent = `[ระบบ] เกิดข้อผิดพลาดในการเรียก Gemini API กำลังสลับไปใช้โหมด Fallback.`;
+                        commentaryLogElement.appendChild(fallbackMsg);
+                        commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                    }
+                } catch (error) {
+                    console.error("Error calling Gemini API:", error);
+                    const errorMsg = document.createElement('p');
+                    errorMsg.textContent = `Commentary failed: ${error.message || JSON.stringify(error) || 'Unknown error'}`;
+                    commentaryLogElement.appendChild(errorMsg);
+                    useFallbackCommentary = true; // Switch to fallback mode
+                    const fallbackMsg = document.createElement('p');
+                    fallbackMsg.textContent = `[ระบบ] เกิดข้อผิดพลาดในการเชื่อมต่อ Gemini API กำลังสลับไปใช้โหมด Fallback.`;
+                    commentaryLogElement.appendChild(fallbackMsg);
+                    commentaryLogElement.scrollTop = commentaryLogElement.scrollHeight;
+                }
+            }
+
+            // Only re-enable the button if the game is still running
+            if (gameRunning) {
+                generateCommentaryBtn.disabled = false;
+                generateCommentaryBtn.textContent = '✨ สร้างคำบรรยาย';
+            }
+        }
+
+
+        // Start the game when the window loads
+        window.onload = () => initGame(true); // Initial full reset
+
+        // Handle window resizing to make canvas responsive
+        window.addEventListener('resize', () => {
+            // For this simple grid game, fixed pixel dimensions are fine,
+            // but the max-width: 100% and height: auto in CSS handles basic responsiveness.
+            // If the game logic needed to adapt to different grid sizes, it would be done here.
+        });
+    </script>
+</body>
+</html>
