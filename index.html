@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width" />
     <title>Idle Bomberman</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
@@ -253,10 +253,42 @@
             color: #FFFFFF; /* White color for the SVG */
         }
 
+        /** Override Bomberman Card  **/
+        .bomberman-card {
+            background-color: #444444;
+            padding: 6px 8px; /* ลด padding */
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-size: 0.75rem; /* ลดขนาดตัวอักษรลงเล็กน้อย */
+            color: #FFFFFF;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px; /* ลดช่องว่างระหว่างบรรทัด */
+        }
+        .bomberman-image-container {
+            width: 36px;
+            height: 36px;
+            margin-bottom: 4px;
+        }
+        .bomberman-image-container svg {
+            width: 20px;
+            height: 20px;
+        }
+        .bomberman-name {
+            font-size: 0.9rem; /* ลดขนาดชื่อ */
+            margin-bottom: 2px;
+        }
+        .bomberman-card p {
+            margin: 1px 0;
+            line-height: 1.2;
+        }
+
         /* Overall Status Panel Styles */
         .overall-status-panel {
-            background-color: #333333;
-            border: 2px solid #555555;
+            background-color: #000000;
+            border: 2px solid #333333;
             border-radius: 8px;
             padding: 15px;
             width: 100%;
@@ -471,10 +503,10 @@
         const MAP_TIMEOUT_TICKS = 60 * 120; // 2 minute timeout
 
         const THAI_FUNNY_NAMES = [
-            "ระเบิดศรี", "จอมวางบึ้ม", "บักตูมตาม", "นายพลปิงปอง", "ระเบิดขั้นเทพ",
-            "เปรี้ยงปร้าง", "ปังปอนด์บอมบ์", "ตูมตามสังหาร", "สหายดินปืน", "หลวงพี่บึ้ม",
-            "ดอกเตอร์บึ้ม", "ยักษ์ใหญ่ไส้แตก", "บักหำน้อย", "จอมมารตูม", "มะระระเบิด",
-            "บอมบ์บอมบี้", "ระเบิดพุงกลม", "นายระเบิด", "บึ้มบึ้มซัง", "ป๋าเปรี้ยง",
+            "ระเบิดศรี", "จอมวาง", "บักตูม", "นายปอง", "ระเบิดเทพ",
+            "เปรี้ยงปร้าง", "ปังบอมบ์", "ตูมสังหาร", "สหายดิน", "หลวงบึ้ม",
+            "ดอกเตอร์บึ้ม", "ยักษ์ไส้แตก", "บักหำ", "จอมมารตูม", "มะระเบิด",
+            "บอมบี้", "ระเบิดพุง", "นายเบิด", "บึ้มซัง", "ป๋าเปรี้ยง",
         ];
 
         function getRandomThaiName() {
@@ -1662,7 +1694,7 @@
         /**
          * Updates the bomberman status display panel.
          */
-        function updateBombermanStatusDisplay() {
+        function updateBombermanStatusDisplay1() {
             if (!bombermanListElement) return; // Ensure element exists
 
             bombermanListElement.innerHTML = ''; // Clear existing cards
@@ -1698,6 +1730,61 @@
                 bombermanListElement.appendChild(bombermanCard);
             });
         }
+
+        function updateBombermanStatusDisplay() {
+            if (!bombermanListElement) return;
+
+            bombermanListElement.innerHTML = '';
+
+            bombermen.forEach(bm => {
+                const isAlive = bm.isAlive;
+                const statusColor = isAlive ? 'text-green-400' : 'text-red-400';
+                const borderColor = isAlive ? 'border-blue-400' : 'border-red-500';
+
+                // Create card container
+                const card = document.createElement('div');
+                card.className = `bg-stone-900 border-t-4 ${borderColor} rounded-md p-4 shadow-lg flex flex-col gap-2`;
+
+                // Header: icon + name + status
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between';
+
+                const iconAndName = document.createElement('div');
+                iconAndName.className = 'flex items-center gap-2';
+
+                const iconWrapper = document.createElement('div');
+                iconWrapper.className = 'w-4 h-4 bg-gray-700 rounded-full flex items-center justify-center text-blue-300';
+                // iconWrapper.innerHTML = bm.svgIcon;
+
+                const nameEl = document.createElement('h3');
+                nameEl.className = 'text-lg font-bold text-white';
+                nameEl.textContent = bm.name;
+
+                // iconAndName.appendChild(iconWrapper);
+                iconAndName.appendChild(nameEl);
+
+                const statusEl = document.createElement('span');
+                statusEl.className = `text-sm font-semibold ${statusColor}`;
+                statusEl.textContent = isAlive ? 'มีชีวิต' : 'ถูกกำจัด';
+
+                header.appendChild(iconAndName);
+                // header.appendChild(statusEl);
+                card.appendChild(header);
+
+                // Stats
+                const stats = document.createElement('div');
+                stats.className = 'text-sm text-gray-300 space-y-1';
+                stats.innerHTML = `
+                    <p>อาชีพ: <span class="text-white font-medium">${bm.currentClass}</span></p>
+                    <p>บอมบ์: <span class="text-white">${bm.bombCount}</span> | รัศมี: <span class="text-white">${bm.explosionRadius}</span></p>
+                    <p class="text-xs text-gray-400 italic">ความสามารถ: ${bm.ability}</p>
+                `;
+                card.appendChild(stats);
+
+                bombermanListElement.appendChild(card);
+            });
+        }
+
 
         /**
          * Updates the overall bomberman status display with circles.
